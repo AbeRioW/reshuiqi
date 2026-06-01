@@ -1,0 +1,24 @@
+--cpu Cortex-M3
+"reshuiqi\startup_stm32f103xb.o"
+"reshuiqi\main.o"
+"reshuiqi\gpio.o"
+"reshuiqi\stm32f1xx_it.o"
+"reshuiqi\stm32f1xx_hal_msp.o"
+"reshuiqi\stm32f1xx_hal_gpio_ex.o"
+"reshuiqi\stm32f1xx_hal.o"
+"reshuiqi\stm32f1xx_hal_rcc.o"
+"reshuiqi\stm32f1xx_hal_rcc_ex.o"
+"reshuiqi\stm32f1xx_hal_gpio.o"
+"reshuiqi\stm32f1xx_hal_dma.o"
+"reshuiqi\stm32f1xx_hal_cortex.o"
+"reshuiqi\stm32f1xx_hal_pwr.o"
+"reshuiqi\stm32f1xx_hal_flash.o"
+"reshuiqi\stm32f1xx_hal_flash_ex.o"
+"reshuiqi\stm32f1xx_hal_exti.o"
+"reshuiqi\system_stm32f1xx.o"
+"reshuiqi\oled.o"
+"reshuiqi\ds1302.o"
+--strict --scatter "reshuiqi\reshuiqi.sct"
+--summary_stderr --info summarysizes --map --load_addr_map_info --xref --callgraph --symbols
+--info sizes --info totals --info unused --info veneers
+--list "reshuiqi.map" -o reshuiqi\reshuiqi.axf
