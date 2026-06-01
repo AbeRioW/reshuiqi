@@ -67,6 +67,10 @@ void Error_Handler(void);
 #define DS1302_DAT_GPIO_Port GPIOA
 #define DS1302_RST_Pin GPIO_PIN_7
 #define DS1302_RST_GPIO_Port GPIOA
+#define LAY_JIARE_Pin GPIO_PIN_3
+#define LAY_JIARE_GPIO_Port GPIOB
+#define LAY_ZHUSHUI_Pin GPIO_PIN_4
+#define LAY_ZHUSHUI_GPIO_Port GPIOB
 #define DS18B20_Pin GPIO_PIN_5
 #define DS18B20_GPIO_Port GPIOB
 

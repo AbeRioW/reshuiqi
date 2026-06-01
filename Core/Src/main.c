@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "tim.h"
 #include "gpio.h"
 
@@ -51,6 +52,10 @@ DS1302_Time time;
 uint8_t time_str[32];
 float temperature;
 uint8_t temp_str[32];
+uint16_t adc_value;
+uint8_t water_depth_str[32];
+uint8_t water_fill_str[32];
+uint8_t heating_str[32];
 volatile uint8_t time_update_flag = 0;
 /* USER CODE END PV */
 
@@ -95,6 +100,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM1_Init();
+  MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   DS1302_Init();
@@ -128,10 +134,10 @@ int main(void)
         sprintf((char*)time_str, "20%02d-%02d-%02d %02d:%02d:%02d",
                 time.year, time.month, time.day,
                 time.hour, time.minute, time.second);
-        OLED_ShowString(0, 24, time_str, 8, 1);
+        OLED_ShowString(0, 32, time_str, 8, 1);
     }
     
-    // 每2秒更新一次温度
+    // 每2秒更新一次温度和加热状态
     static uint32_t temp_update_timer = 0;
     if (HAL_GetTick() - temp_update_timer >= 2000)
     {
@@ -139,13 +145,73 @@ int main(void)
         temperature = DS18B20_Get_Temperature();
         if (temperature < -100)
         {
-            sprintf((char*)temp_str, "Temp:Error!");
+            sprintf((char*)temp_str, "Water Temp:Error!");
         }
         else
         {
-            sprintf((char*)temp_str, "Temp:%.1f C", temperature);
+            sprintf((char*)temp_str, "Water Temp:%.1f C", temperature);
         }
         OLED_ShowString(0, 0, temp_str, 8, 1);
+        
+        // 温度控制：低于20度时加热，高于60度时停止加热
+        if (temperature > -100)
+        {
+            if (temperature < 20.0f)
+            {
+                HAL_GPIO_WritePin(LAY_JIARE_GPIO_Port, LAY_JIARE_Pin, GPIO_PIN_SET);
+                sprintf((char*)heating_str, "Heating:YES");
+            }
+            else if (temperature > 60.0f)
+            {
+                HAL_GPIO_WritePin(LAY_JIARE_GPIO_Port, LAY_JIARE_Pin, GPIO_PIN_RESET);
+                sprintf((char*)heating_str, "Heating:NO ");
+            }
+            // 20-60度之间保持当前状态，读取当前引脚状态更新显示
+            else
+            {
+                if (HAL_GPIO_ReadPin(LAY_JIARE_GPIO_Port, LAY_JIARE_Pin) == GPIO_PIN_SET)
+                {
+                    sprintf((char*)heating_str, "Heating:YES");
+                }
+                else
+                {
+                    sprintf((char*)heating_str, "Heating:NO ");
+                }
+            }
+        }
+        OLED_ShowString(0, 24, heating_str, 8, 1);
+    }
+    
+    // 每秒更新一次水深和注水状态
+    static uint32_t water_update_timer = 0;
+    if (HAL_GetTick() - water_update_timer >= 1000)
+    {
+        water_update_timer = HAL_GetTick();
+        
+        // 读取ADC值
+        HAL_ADC_Start(&hadc1);
+        if (HAL_ADC_PollForConversion(&hadc1, 10) == HAL_OK)
+        {
+            adc_value = HAL_ADC_GetValue(&hadc1);
+        }
+        HAL_ADC_Stop(&hadc1);
+        
+        // 显示ADC值（这里假设是原始值，你可以根据需要转换为水深单位）
+        sprintf((char*)water_depth_str, "Water Depth:%4d", adc_value);
+        OLED_ShowString(0, 8, water_depth_str, 8, 1);
+        
+        // 水位控制：低于100时注水
+        if (adc_value < 100)
+        {
+            HAL_GPIO_WritePin(LAY_ZHUSHUI_GPIO_Port, LAY_ZHUSHUI_Pin, GPIO_PIN_SET);
+            sprintf((char*)water_fill_str, "Water Fill:YES");
+        }
+        else
+        {
+            HAL_GPIO_WritePin(LAY_ZHUSHUI_GPIO_Port, LAY_ZHUSHUI_Pin, GPIO_PIN_RESET);
+            sprintf((char*)water_fill_str, "Water Fill:NO ");
+        }
+        OLED_ShowString(0, 16, water_fill_str, 8, 1);
     }
     
     OLED_Refresh();
@@ -161,6 +227,7 @@ void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
   RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
 
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
@@ -187,6 +254,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
   if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
+  if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
