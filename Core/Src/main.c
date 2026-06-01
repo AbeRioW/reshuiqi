@@ -18,12 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "tim.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "oled.h"
 #include "ds1302.h"
+#include "ds18b20.h"
 #include <stdio.h>
 /* USER CODE END Includes */
 
@@ -47,6 +49,9 @@
 /* USER CODE BEGIN PV */
 DS1302_Time time;
 uint8_t time_str[32];
+float temperature;
+uint8_t temp_str[32];
+volatile uint8_t time_update_flag = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -89,9 +94,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
   OLED_Init();
   DS1302_Init();
+  DS18B20_Init();
   
   time.year = 24;
   time.month = 6;
@@ -102,8 +109,8 @@ int main(void)
   time.second = 0;
   DS1302_SetTime(&time);
   
-//  OLED_ShowString(0,0,(uint8_t*)"hello",8,1);
-//  OLED_Refresh();
+  // 启动定时器
+  HAL_TIM_Base_Start_IT(&htim1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -113,13 +120,35 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-    DS1302_GetTime(&time);
-    sprintf((char*)time_str, "20%02d-%02d-%02d %02d:%02d:%02d",
-            time.year, time.month, time.day,
-            time.hour, time.minute, time.second);
-    OLED_ShowString(0, 24, time_str, 8, 1);
+    // 检查是否需要更新时间
+    if (time_update_flag)
+    {
+        time_update_flag = 0;
+        DS1302_GetTime(&time);
+        sprintf((char*)time_str, "20%02d-%02d-%02d %02d:%02d:%02d",
+                time.year, time.month, time.day,
+                time.hour, time.minute, time.second);
+        OLED_ShowString(0, 24, time_str, 8, 1);
+    }
+    
+    // 每2秒更新一次温度
+    static uint32_t temp_update_timer = 0;
+    if (HAL_GetTick() - temp_update_timer >= 2000)
+    {
+        temp_update_timer = HAL_GetTick();
+        temperature = DS18B20_Get_Temperature();
+        if (temperature < -100)
+        {
+            sprintf((char*)temp_str, "Temp:Error!");
+        }
+        else
+        {
+            sprintf((char*)temp_str, "Temp:%.1f C", temperature);
+        }
+        OLED_ShowString(0, 0, temp_str, 8, 1);
+    }
+    
     OLED_Refresh();
-    HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
@@ -164,7 +193,13 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM1)
+    {
+        time_update_flag = 1;
+    }
+}
 /* USER CODE END 4 */
 
 /**

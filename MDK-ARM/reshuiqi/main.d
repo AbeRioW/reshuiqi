@@ -25,7 +25,11 @@ reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_cortex.h
 reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash.h
 reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_flash_ex.h
 reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_pwr.h
+reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim.h
+reshuiqi\main.o: ../Drivers/STM32F1xx_HAL_Driver/Inc/stm32f1xx_hal_tim_ex.h
+reshuiqi\main.o: ../Core/Inc/tim.h
 reshuiqi\main.o: ../Core/Inc/gpio.h
 reshuiqi\main.o: ../App/oled.h
 reshuiqi\main.o: ../App/ds1302.h
+reshuiqi\main.o: ../App/ds18b20.h
 reshuiqi\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h

@@ -67,6 +67,8 @@ void Error_Handler(void);
 #define DS1302_DAT_GPIO_Port GPIOA
 #define DS1302_RST_Pin GPIO_PIN_7
 #define DS1302_RST_GPIO_Port GPIOA
+#define DS18B20_Pin GPIO_PIN_5
+#define DS18B20_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
