@@ -36,3 +36,4 @@ reshuiqi\main.o: ../App/oled.h
 reshuiqi\main.o: ../App/ds1302.h
 reshuiqi\main.o: ../App/ds18b20.h
 reshuiqi\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\stdio.h
+reshuiqi\main.o: C:\Keil_v5\ARM\ARMCC\Bin\..\include\string.h
