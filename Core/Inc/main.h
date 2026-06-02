@@ -82,6 +82,8 @@ void Error_Handler(void);
 #define LAY_ZHUSHUI_GPIO_Port GPIOB
 #define DS18B20_Pin GPIO_PIN_5
 #define DS18B20_GPIO_Port GPIOB
+#define BEEP_Pin GPIO_PIN_6
+#define BEEP_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 

@@ -99,16 +99,100 @@ uint8_t display_line4[32];
 
 // 用于检测状态变化
 SystemState previous_state = STATE_MAIN;
+/* 用户参数存储结构 */
+typedef struct {
+    int8_t temp_high_threshold;
+    int8_t temp_low_threshold;
+    uint16_t water_level_threshold;
+    uint32_t checksum;
+} UserParams;
+
+/* Flash存储地址 - 使用最后一个扇区 */
+#define FLASH_USER_START_ADDR  ((uint32_t)0x0801F800)
+
+/* 用于存储参数的变量 */
+UserParams user_params;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+void SaveParamsToFlash(void);
+void LoadParamsFromFlash(void);
+uint32_t CalculateChecksum(UserParams *params);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+/* 计算校验和 */
+uint32_t CalculateChecksum(UserParams *params)
+{
+    uint32_t sum = 0;
+    sum += (uint32_t)params->temp_high_threshold;
+    sum += (uint32_t)params->temp_low_threshold;
+    sum += (uint32_t)params->water_level_threshold;
+    return sum;
+}
+
+/* 保存参数到Flash */
+void SaveParamsToFlash(void)
+{
+    FLASH_EraseInitTypeDef EraseInitStruct;
+    uint32_t PAGEError = 0;
+    HAL_StatusTypeDef status;
+    
+    /* 解锁Flash */
+    HAL_FLASH_Unlock();
+    
+    /* 擦除指定页 */
+    EraseInitStruct.TypeErase = FLASH_TYPEERASE_PAGES;
+    EraseInitStruct.PageAddress = FLASH_USER_START_ADDR;
+    EraseInitStruct.NbPages = 1;
+    
+    status = HAL_FLASHEx_Erase(&EraseInitStruct, &PAGEError);
+    
+    if (status == HAL_OK)
+    {
+        /* 填充参数结构体 */
+        user_params.temp_high_threshold = temp_high_threshold;
+        user_params.temp_low_threshold = temp_low_threshold;
+        user_params.water_level_threshold = water_level_threshold;
+        user_params.checksum = CalculateChecksum(&user_params);
+        
+        /* 写入Flash */
+        uint32_t *src = (uint32_t *)&user_params;
+        uint32_t addr = FLASH_USER_START_ADDR;
+        uint32_t size = (sizeof(UserParams) + 3) / 4; /* 以字为单位 */
+        
+        for (uint32_t i = 0; i < size; i++)
+        {
+            HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, addr, *src);
+            addr += 4;
+            src++;
+        }
+    }
+    
+    /* 锁定Flash */
+    HAL_FLASH_Lock();
+}
+
+/* 从Flash加载参数 */
+void LoadParamsFromFlash(void)
+{
+    UserParams *flash_params = (UserParams *)FLASH_USER_START_ADDR;
+    
+    /* 检查校验和 */
+    if (flash_params->checksum == CalculateChecksum(flash_params))
+    {
+        /* 加载有效参数 */
+        temp_high_threshold = flash_params->temp_high_threshold;
+        temp_low_threshold = flash_params->temp_low_threshold;
+        water_level_threshold = flash_params->water_level_threshold;
+    }
+    /* 如果校验和无效，保持默认值 */
+}
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
@@ -172,6 +256,9 @@ int main(void)
 //  time.minute = 0;
 //  time.second = 0;
 //  DS1302_SetTime(&time);
+  
+  /* 从Flash加载保存的参数 */
+  LoadParamsFromFlash();
   
   // 初始化注水时间
   water_fill_time.hour = 12;
@@ -247,13 +334,19 @@ int main(void)
                 break;
             case STATE_SET_TEMP_HIGH:
                 current_state = STATE_SET_TEMP_LOW;
+                /* 保存参数到Flash */
+                SaveParamsToFlash();
                 break;
             case STATE_SET_TEMP_LOW:
                 current_state = STATE_SET_WATER_LEVEL;
+                /* 保存参数到Flash */
+                SaveParamsToFlash();
                 break;
             case STATE_SET_WATER_LEVEL:
                 current_state = STATE_SET_TIME;
                 setting_index = 0;
+                /* 保存参数到Flash */
+                SaveParamsToFlash();
                 // 进入设置时间页面时，先读取DS1302的当前时间作为初始值
                 DS1302_GetTime(&time);
                 break;
@@ -405,6 +498,18 @@ int main(void)
                 {
                     HAL_GPIO_WritePin(LAY_JIARE_GPIO_Port, LAY_JIARE_Pin, GPIO_PIN_RESET);
                 }
+            }
+            
+            // 温度报警控制
+            if (temperature >= temp_high_threshold)
+            {
+                // 超过高阈值，拉低beep报警
+                HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_RESET);
+            }
+            else
+            {
+                // 低于高阈值，拉高beep（默认状态）
+                HAL_GPIO_WritePin(BEEP_GPIO_Port, BEEP_Pin, GPIO_PIN_SET);
             }
         }
         
